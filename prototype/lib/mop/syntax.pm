@@ -188,18 +188,22 @@ sub attribute_parser {
 
     $self->init( @_ );
 
+    my $linestr     = $self->get_linestr;
+    my $old_offset  = $self->offset;
+    my $full_length = 0;
+
     $self->skip_declarator;
     $self->skipspace;
 
+    $full_length += $self->offset - $old_offset;
+
     my $name;
 
-    my $linestr = $self->get_linestr;
-    if ( substr( $linestr, $self->offset, 1 ) eq '$' ) {
+    if ( substr( $linestr, $self->offset, 1 ) =~ /^[\$\@\%]$/ ) {
         my $length = Devel::Declare::toke_scan_ident( $self->offset );
         $name = substr( $linestr, $self->offset, $length );
 
-        my $full_length = $length;
-        my $old_offset  = $self->offset;
+        $full_length += $length;
 
         $self->inc_offset( $length );
         $self->skipspace;
@@ -212,7 +216,10 @@ sub attribute_parser {
             Devel::Declare::clear_lex_stuff();
         }
 
-        substr( $linestr, $old_offset, $full_length ) = '(\(my ' . $name . ')' . ( $proto ? (', (' . $proto) : '') . ')';
+        my $new_linestr = 'has(\(my ' . $name . ')' . ( $proto ? (', (' . $proto) : '') . ')';
+        $new_linestr = '(' . $new_linestr . ')'
+            if $name =~ /^[\@\%]/;
+        substr( $linestr, $old_offset, $full_length ) = $new_linestr;
 
         $self->set_linestr( $linestr );
     }
